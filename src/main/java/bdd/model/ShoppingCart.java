@@ -1,13 +1,16 @@
 package bdd.model;
 
+import javax.sound.sampled.Line;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class ShoppingCart {
     private final int scale = 2;
-    private final ConcurrentHashMap<String, LineItem> items = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Product, LineItem> items = new ConcurrentHashMap<>();
     private final AtomicReference<Float> taxRate = new AtomicReference<>(0.0f);
 
     public ShoppingCart setTaxRate(float theTaxRate) {
@@ -17,11 +20,24 @@ public final class ShoppingCart {
 
     public void add(LineItem item) {
         Objects.requireNonNull(item);
-        String name = item.getName();
+        Product oldProduct = item.getProduct();
 
         // Mutually exclusive atomic operations.
-        items.computeIfPresent(name, (k, oldItem) -> new LineItem(name, oldItem.getUnitPrice(), oldItem.getQuantity() + item.getQuantity()));
-        items.putIfAbsent(name, item);
+        items.computeIfPresent(oldProduct, (k, oldItem) -> new LineItem(oldProduct, oldItem.getQuantity() + item.getQuantity()));
+        items.putIfAbsent(item.getProduct(), item);
+    }
+
+    public synchronized void remove(Product oldProduct, int quantity) {
+        Objects.requireNonNull(oldProduct);
+        items.computeIfPresent(oldProduct, (k, oldItem) -> {
+            return new LineItem(oldProduct, oldItem.getQuantity() - quantity);
+        });
+
+        for (Product p : items.keySet()) {
+            if (items.get(p).getQuantity() <= 0) {
+                items.remove(p);
+            }
+        }
     }
 
     public Collection<LineItem> getLineItems() {
@@ -33,7 +49,7 @@ public final class ShoppingCart {
     }
 
     private BigDecimal getTotalPriceWithoutTax() {
-        return items.values().stream().map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+        return items.values().stream().map(item -> item.getProduct().getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

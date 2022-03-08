@@ -4,26 +4,23 @@ import java.math.BigDecimal;
 import java.util.Objects;
 
 public final class LineItem {
-    private final String name;
-    private final BigDecimal unitPrice;
+    private final Product product;
     private final int quantity;
 
-    public LineItem(String name, BigDecimal unitPrice, int quantity) {
-        Objects.requireNonNull(name);
-        this.name = name;
-        this.unitPrice = unitPrice;
+    public LineItem(Product product, int quantity) {
+        Objects.requireNonNull(product);
+        this.product = product;
         this.quantity = quantity;
     }
 
-    public String getName() {
-        return this.name;
+    public Product getProduct() {
+        return this.product;
     }
 
+    public BigDecimal getLineItemPrice() {
+        return BigDecimal.valueOf(this.quantity).multiply(product.getUnitPrice());
+    }
     public int getQuantity() {
         return this.quantity;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return this.unitPrice;
     }
 }
